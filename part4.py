@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import ascii
 from scipy import stats
-from funcs import plot_fit4, round_sig_fig_uncertainty, fitting, quad, sqr
+from funcs import plot_fit4, round_sig_fig_uncertainty, fitting, quad, sqr, cubic
 import scipy.optimize as opt
 
 # import the data
@@ -111,24 +111,6 @@ print(f"The value of \u03C3 calculated while decreasing B, I > 0: {sigma[1]} \u0
 print(f"The value of \u03C3 calculated while decreasing B, I < 0: {sigma[2]} \u00B1 {sigma_errs[2]} J T\u207B\u00B9 kg\u207B\u00B9")
 print(f"The value of \u03C3 calculated while increasing B, I < 0: {sigma[3]} \u00B1 {sigma_errs[3]} J T\u207B\u00B9 kg\u207B\u00B9")
 
-Bs = np.array([B_up, B_down, B_down_neg, B_up_neg])
-Is = np.array([I_up, I_down, I_down_neg, I_up_neg])
-Berrs = np.array([B_up_err, B_down_err, B_down_neg_err, B_up_neg_err])
-Ierrs = np.array([I_up_err, I_down_err, I_down_neg_err, I_up_neg_err])
-
-# plot 
-plt.errorbar(I_up, B_up, B_up_err, I_up_err, label='Increasing B, I > 0', fmt='none', color='blue')
-plt.errorbar(I_down, B_down, B_down_err, I_down_err, label='Decreasing B, I > 0', fmt='none', color='orange')
-plt.errorbar(I_down_neg, B_down_neg, B_down_neg_err, I_down_neg_err, label='Decreasing B, I < 0', fmt='none', color='green')
-plt.errorbar(I_up_neg, B_up_neg, B_up_neg_err, I_up_neg_err, label='Decreasing B, I < 0', fmt='none', color='red')
-
-
-plt.xlabel('I [A]')
-plt.ylabel('B [T]')
-plt.title('The curve of the magnetic field strength (B) as a function of the current (I)')
-plt.legend()
-plt.show()
-
 # Try non-linear fits
 # Quadratic
 p0 = np.array([0.01, 0.01])
@@ -138,7 +120,7 @@ down_fit = fitting(p0, B_down, F_down, quad, B_down_err, Ferr, 'orange', 'Decrea
 down_neg_fit = fitting(p0, B_down_neg, F_down_neg, quad, B_down_neg_err, Ferr, 'green', 'Decreasing B, I < 0')
 up_neg_fit = fitting(p0, B_up_neg, F_up_neg, quad, B_up_neg_err, Ferr, 'red', 'Increasing B, I < 0')
 
-plt.title("Plot of the measured excess vertical force due to the sample of Hematite ($F_Z$) against the magnetic field stength ($B$)")
+plt.title("Plot of the measured excess vertical force due to the sample of Hematite ($F_Z$) against the magnetic field stength ($B$) with a quadratic fit")
 plt.xlabel('$B$ [$T$]')
 plt.ylabel('$F_Z$ [N]')
 plt.legend()
@@ -186,9 +168,9 @@ plt.scatter(I_up_neg, B_up_neg_fit, label='Decreasing B, I < 0', color='red')
 plt.xlabel('I [A]')
 plt.ylabel('B [T]')
 plt.title('The fitted curve of the magnetic field strength (B) as a function of the current (I)')
+plt.grid()
 plt.legend()
 plt.show()
-
 
 # now find sigma(B)
 sigma_up = (B_up_fit*up_fit[0][0] + up_fit[0][1])/(m*C)
@@ -196,11 +178,69 @@ sigma_down = (B_down_fit*down_fit[0][0] + down_fit[0][1])/(m*C)
 sigma_down_neg = (B_down_neg_fit*down_neg_fit[0][0] + down_neg_fit[0][1])/(m*C)
 sigma_up_neg = (B_up_neg_fit*up_neg_fit[0][0] + up_neg_fit[0][1])/(m*C)
 
-plt.scatter(B_up_fit, sigma_up)
-plt.scatter(B_down_fit, sigma_down)
-plt.scatter(B_down_neg_fit, sigma_down_neg)
-plt.scatter(B_up_neg_fit, sigma_up_neg)
+
+
+plt.scatter(B_up_fit, sigma_up, label='Increasing B, I > 0', color='blue')
+plt.scatter(B_down_fit, sigma_down, label='Decreasing B, I > 0', color='orange')
+plt.scatter(B_down_neg_fit, sigma_down_neg, label='Decreasing B, I < 0', color='green')
+plt.scatter(B_up_neg_fit, sigma_up_neg, label='Decreasing B, I < 0', color='red')
+
+
+plt.xlabel('B [T]')
+plt.ylabel('$\sigma$ [J T$^{-1}$ kg$^{-1}$]')
+plt.title('The fitted curve of $\sigma$ (B) for the ferromagnetic hematite')
+plt.grid()
+plt.legend()
 plt.show()
+
+# try cubic
+p0 = np.array([1, 1, 1])
+
+up_fit = fitting(p0, B_up, F_up, cubic, B_up_err, Ferr, 'blue', 'Increasing B, I > 0')
+down_fit = fitting(p0, B_down, F_down, cubic, B_down_err, Ferr, 'orange', 'Decreasing B, I > 0')
+down_neg_fit = fitting(p0, B_down_neg, F_down_neg, cubic, B_down_neg_err, Ferr, 'green', 'Decreasing B, I < 0')
+up_neg_fit = fitting(p0, B_up_neg, F_up_neg, cubic, B_up_neg_err, Ferr, 'red', 'Increasing B, I < 0')
+
+plt.title("Plot of the measured excess vertical force due to the sample of Hematite ($F_Z$) against the magnetic field stength ($B$) with a cubic fit")
+plt.xlabel('$B$ [$T$]')
+plt.ylabel('$F_Z$ [N]')
+plt.legend()
+plt.grid()
+plt.show()
+
+cubic_out = open('cubic_fit_file.txt','w', encoding='utf-8')
+cubic_out.write('F = aB^3 + bB^2 + cB\n')
+cubic_out.write('a\tb\tc\tchi2\n')
+
+fits = [up_fit, down_fit, down_neg_fit, up_neg_fit]
+
+for i in range(len(fits)):
+    for j in range(len(fits[i][0])):
+        cubic_out.write(str(fits[i][0][j])  + '\t')
+    cubic_out.write(str(fits[i][1]) + '\n')
+
+
+# now find sigma(B)
+sigma_up = (B_up_fit**2*up_fit[0][0] + B_up_fit*up_fit[0][1] + up_fit[0][2])/(m*C)
+sigma_down = (B_down_fit**2*down_fit[0][0] + B_down_fit*down_fit[0][1] + down_fit[0][2])/(m*C)
+sigma_down_neg = (B_down_neg_fit**2*down_neg_fit[0][0] + B_down_neg_fit*down_neg_fit[0][1] + down_neg_fit[0][2])/(m*C)
+sigma_up_neg = (B_up_neg_fit**2*up_neg_fit[0][0] + B_up_neg_fit*up_neg_fit[0][1] + up_neg_fit[0][2])/(m*C)
+
+
+
+plt.scatter(B_up_fit, sigma_up, label='Increasing B, I > 0', color='blue')
+plt.scatter(B_down_fit, sigma_down, label='Decreasing B, I > 0', color='orange')
+plt.scatter(B_down_neg_fit, sigma_down_neg, label='Decreasing B, I < 0', color='green')
+plt.scatter(B_up_neg_fit, sigma_up_neg, label='Decreasing B, I < 0', color='red')
+
+
+plt.xlabel('B [T]')
+plt.ylabel('$\sigma$ [J T$^{-1}$ kg$^{-1}$]')
+plt.title('The fitted curve of $\sigma$ (B) for the ferromagnetic hematite')
+plt.grid()
+plt.legend()
+plt.show()
+
 
 
 '''

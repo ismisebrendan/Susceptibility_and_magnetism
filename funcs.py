@@ -64,6 +64,12 @@ def quad(p, x):
     m = p[0]*x**2 + p[1]*x
     return m
 
+# cubic model
+def cubic(p, x):
+    # m = ax^3 + bx^2 + cx
+    m = p[0]*x**3 + p[1]*x**2 + p[2]*x
+    return m
+
 def sqr(p,x):
     # m = ax^2
     m = p*x**2
